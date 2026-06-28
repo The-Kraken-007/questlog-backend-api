@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/QuestLog.API/QuestLog.API.csproj" />
+    <Project Path="src/QuestLog.Application/QuestLog.Application.csproj" />
+    <Project Path="src/QuestLog.Domain/QuestLog.Domain.csproj" />
+    <Project Path="src/QuestLog.Infrastructure/QuestLog.Infrastructure.csproj" />
+  </Folder>
+</Solution>

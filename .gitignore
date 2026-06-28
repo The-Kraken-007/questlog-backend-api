@@ -1,0 +1,41 @@
+## .NET / C# gitignore for QuestLog API
+
+# Build outputs
+bin/
+obj/
+
+# SQLite database files (local dev data, never commit)
+*.db
+*.db-shm
+*.db-wal
+
+# User-specific Visual Studio / Rider files
+*.user
+*.suo
+.vs/
+.idea/
+*.DS_Store
+
+# NuGet
+packages/
+*.nupkg
+project.lock.json
+project.nuget.props
+project.nuget.targets
+.nuget/
+
+# Publish output
+publish/
+out/
+
+# Test results
+TestResults/
+coverage/
+
+# Environment / secrets
+appsettings.Local.json
+appsettings.Production.json
+.env
+
+# dotnet tool manifest (optional — remove if you commit this)
+# .config/dotnet-tools.json
