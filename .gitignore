@@ -39,3 +39,6 @@ appsettings.Production.json
 
 # dotnet tool manifest (optional — remove if you commit this)
 # .config/dotnet-tools.json
+
+# Local documentation
+docs/

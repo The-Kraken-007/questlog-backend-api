@@ -38,49 +38,51 @@ Track what's done, what's in progress, and what's next.
 
 ---
 
-## Phase 3 — Goals API 🔲 TODO
+## Phase 3 — Goals API ✅ COMPLETE
 
-- [ ] `CreateGoalCommand` + Handler
-- [ ] `UpdateGoalCommand` + Handler
-- [ ] `GetAllGoalsQuery` + Handler
-- [ ] `GetGoalByIdQuery` + Handler
-- [ ] `AddMilestoneCommand` + Handler
-- [ ] `ToggleMilestoneCommand` + Handler
-- [ ] Progress calculation logic (`completed / total * 100`)
-- [ ] `GoalsController` (wire up all endpoints)
-- [ ] **Checkpoint:** Create goal → add milestones → complete some → progress = correct % ✅
-
----
-
-## Phase 4 — Daily Log API 🔲 TODO
-
-- [ ] `CreateOrUpdateLogCommand` + Handler (upsert by date)
-- [ ] `GetLogByDateQuery` + Handler
-- [ ] `GetLogsInRangeQuery` + Handler
-- [ ] `DailyLogsController` (wire up all endpoints)
-- [ ] **Checkpoint:** Write log → retrieve → update → retrieve again ✅
+- [x] `CreateGoalCommand` + Handler
+- [x] `UpdateGoalCommand` + Handler
+- [x] `GetAllGoalsQuery` + Handler (includes milestones + progress %)
+- [x] `GetGoalByIdQuery` + Handler
+- [x] `AddMilestoneCommand` + Handler
+- [x] `ToggleMilestoneCommand` + Handler (auto-completes goal when all milestones done)
+- [x] Progress calculation logic (`completed / total * 100`)
+- [x] `GoalsController` with all endpoints wired
+- [x] **Checkpoint:** Create goal → add 4 milestones → complete 2 → progress = 50% ✅
 
 ---
 
-## Phase 5 — Dashboard API 🔲 TODO
+## Phase 4 — Daily Log API ✅ COMPLETE
 
-- [ ] `GetDashboardDataQuery` + Handler
-  - [ ] Today's habits with completion status
-  - [ ] Top 3 streaks
-  - [ ] Active goals with progress %
-  - [ ] Today's log preview
-- [ ] `DashboardController`
-- [ ] **Checkpoint:** Hit `/api/dashboard` → get complete JSON with all data ✅
+- [x] `CreateOrUpdateLogCommand` + Handler (upsert by date)
+- [x] `GetLogByDateQuery` + Handler (returns 404 if no log for that date)
+- [x] `GetLogsInRangeQuery` + Handler
+- [x] `DailyLogsController` with all endpoints wired
+- [x] **Checkpoint:** Write log → retrieve → update → retrieve again ✅
 
 ---
 
-## Phase 6 — Polish & Hardening 🔲 TODO
+## Phase 5 — Dashboard API ✅ COMPLETE
 
-- [ ] Add global exception handling middleware
-- [ ] Add request validation pipeline (FluentValidation + MediatR pipeline behavior)
-- [ ] Add `ProblemDetails` responses for consistent error format
-- [ ] Add `.gitignore` (exclude `questlog.db`, `bin/`, `obj/`)
-- [ ] Initialize git repo in `/backend`
+- [x] `GetDashboardDataQuery` + Handler
+  - [x] Today's habits with completion status per habit
+  - [x] Top 3 active streaks
+  - [x] All active goals with progress %
+  - [x] Today's log content (or null if not written)
+- [x] `DashboardController`
+- [x] **Checkpoint:** `/api/dashboard` returns complete, correct JSON ✅
+
+---
+
+## Phase 5.5 — Hardening ✅ COMPLETE
+
+- [x] Global exception middleware (catches unhandled errors, returns ProblemDetails)
+- [x] MediatR validation pipeline behavior (FluentValidation runs before handlers)
+- [x] Consistent error response format (RFC 7807 ProblemDetails)
+- [x] Add `.gitignore` (exclude `questlog.db`, `bin/`, `obj/`)
+- [x] Initialize git repo in `/backend`
+- [x] `SQLitePCLRaw.lib.e_sqlite3` pinned to `3.50.3` (CVE fix)
+- [x] **Checkpoint:** Invalid requests return 400. Crashes return 500. CVE mitigated. ✅
 
 ---
 
