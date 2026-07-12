@@ -10,16 +10,13 @@ public record GetAllGoalsQuery : IRequest<List<GoalDto>>;
 
 public class GetAllGoalsQueryHandler : IRequestHandler<GetAllGoalsQuery, List<GoalDto>>
 {
-    private readonly IAppDbContext _db;
+    private readonly IGoalRepository _repository;
 
-    public GetAllGoalsQueryHandler(IAppDbContext db) => _db = db;
+    public GetAllGoalsQueryHandler(IGoalRepository repository) => _repository = repository;
 
     public async Task<List<GoalDto>> Handle(GetAllGoalsQuery request, CancellationToken cancellationToken)
     {
-        var goals = await _db.Goals
-            .Include(g => g.Milestones)
-            .OrderByDescending(g => g.CreatedAt)
-            .ToListAsync(cancellationToken);
+        var goals = await _repository.GetAllWithMilestonesAsync(cancellationToken);
 
         return goals.Select(GoalMapper.ToDto).ToList();
     }

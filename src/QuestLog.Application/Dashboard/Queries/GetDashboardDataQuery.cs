@@ -11,20 +11,26 @@ public record GetDashboardDataQuery : IRequest<DashboardDto>;
 
 public class GetDashboardDataQueryHandler : IRequestHandler<GetDashboardDataQuery, DashboardDto>
 {
-    private readonly IAppDbContext _db;
+    private readonly IHabitRepository _habitRepo;
+    private readonly IGoalRepository _goalRepo;
+    private readonly IDailyLogRepository _logRepo;
 
-    public GetDashboardDataQueryHandler(IAppDbContext db) => _db = db;
+    public GetDashboardDataQueryHandler(
+        IHabitRepository habitRepo,
+        IGoalRepository goalRepo,
+        IDailyLogRepository logRepo)
+    {
+        _habitRepo = habitRepo;
+        _goalRepo = goalRepo;
+        _logRepo = logRepo;
+    }
 
     public async Task<DashboardDto> Handle(GetDashboardDataQuery request, CancellationToken cancellationToken)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         // Load all active habits with their entries in a single query
-        var habits = await _db.Habits
-            .Where(h => !h.IsArchived)
-            .Include(h => h.Entries)
-            .OrderBy(h => h.SortOrder).ThenBy(h => h.Id)
-            .ToListAsync(cancellationToken);
+        var habits = await _habitRepo.GetAllActiveAsync(cancellationToken);
 
         // Build habit summaries — reuse the same StreakCalculator from Phase 2
         var habitSummaries = habits.Select(h =>
@@ -53,12 +59,7 @@ public class GetDashboardDataQueryHandler : IRequestHandler<GetDashboardDataQuer
                 CurrentStreak = h.CurrentStreak
             }).ToList();
 
-        // Active goals with progress %
-        var activeGoals = await _db.Goals
-            .Where(g => g.Status == GoalStatus.Active)
-            .Include(g => g.Milestones)
-            .OrderByDescending(g => g.CreatedAt)
-            .ToListAsync(cancellationToken);
+        var activeGoals = await _goalRepo.GetAllActiveAsync(cancellationToken);
 
         var activeGoalDtos = activeGoals.Select(g =>
         {
@@ -78,10 +79,8 @@ public class GetDashboardDataQueryHandler : IRequestHandler<GetDashboardDataQuer
         }).ToList();
 
         // Today's log — just the content, null if not written yet
-        var todayLog = await _db.DailyLogs
-            .Where(l => l.Date == today)
-            .Select(l => l.Content)
-            .FirstOrDefaultAsync(cancellationToken);
+        var todayLogEntity = await _logRepo.GetByDateAsync(today, cancellationToken);
+        var todayLog = todayLogEntity?.Content;
 
         return new DashboardDto
         {

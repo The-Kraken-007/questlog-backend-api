@@ -14,9 +14,9 @@ public record CreateGoalCommand(
 
 public class CreateGoalCommandHandler : IRequestHandler<CreateGoalCommand, GoalDto>
 {
-    private readonly IAppDbContext _db;
+    private readonly IGoalRepository _repository;
 
-    public CreateGoalCommandHandler(IAppDbContext db) => _db = db;
+    public CreateGoalCommandHandler(IGoalRepository repository) => _repository = repository;
 
     public async Task<GoalDto> Handle(CreateGoalCommand request, CancellationToken cancellationToken)
     {
@@ -28,8 +28,8 @@ public class CreateGoalCommandHandler : IRequestHandler<CreateGoalCommand, GoalD
             CreatedAt   = DateTime.UtcNow
         };
 
-        _db.Goals.Add(goal);
-        await _db.SaveChangesAsync(cancellationToken);
+        _repository.Add(goal);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         return GoalMapper.ToDto(goal);
     }

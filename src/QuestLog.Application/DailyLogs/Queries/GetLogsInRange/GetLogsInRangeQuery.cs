@@ -9,16 +9,13 @@ public record GetLogsInRangeQuery(DateOnly From, DateOnly To) : IRequest<List<Da
 
 public class GetLogsInRangeQueryHandler : IRequestHandler<GetLogsInRangeQuery, List<DailyLogDto>>
 {
-    private readonly IAppDbContext _db;
+    private readonly IDailyLogRepository _repository;
 
-    public GetLogsInRangeQueryHandler(IAppDbContext db) => _db = db;
+    public GetLogsInRangeQueryHandler(IDailyLogRepository repository) => _repository = repository;
 
     public async Task<List<DailyLogDto>> Handle(GetLogsInRangeQuery request, CancellationToken cancellationToken)
     {
-        var logs = await _db.DailyLogs
-            .Where(l => l.Date >= request.From && l.Date <= request.To)
-            .OrderBy(l => l.Date)
-            .ToListAsync(cancellationToken);
+        var logs = await _repository.GetLogsInRangeAsync(request.From, request.To, cancellationToken);
 
         return logs.Select(l => new DailyLogDto
         {

@@ -17,6 +17,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Register IAppDbContext → AppDbContext so Application handlers stay decoupled from Infrastructure
 builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
+// Register Repositories
+builder.Services.AddScoped(typeof(IRepository<>), typeof(QuestLog.Infrastructure.Repositories.Repository<>));
+builder.Services.AddScoped<IHabitRepository, QuestLog.Infrastructure.Repositories.HabitRepository>();
+builder.Services.AddScoped<IGoalRepository, QuestLog.Infrastructure.Repositories.GoalRepository>();
+builder.Services.AddScoped<IDailyLogRepository, QuestLog.Infrastructure.Repositories.DailyLogRepository>();
+
 // MediatR — scans Application assembly for all handlers
 builder.Services.AddMediatR(cfg =>
 {
