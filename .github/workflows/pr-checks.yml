@@ -1,0 +1,29 @@
+name: PR Checks — Backend
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  build-and-test:
+    name: Build & Test (.NET 10)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore QuestLog.slnx
+
+      - name: Build
+        run: dotnet build QuestLog.slnx --no-restore -c Release
+
+      - name: Run tests
+        run: dotnet test QuestLog.slnx --no-build -c Release --verbosity normal

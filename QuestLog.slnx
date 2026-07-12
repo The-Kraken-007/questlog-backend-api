@@ -5,4 +5,7 @@
     <Project Path="src/QuestLog.Domain/QuestLog.Domain.csproj" />
     <Project Path="src/QuestLog.Infrastructure/QuestLog.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/QuestLog.Tests/QuestLog.Tests.csproj" />
+  </Folder>
 </Solution>
