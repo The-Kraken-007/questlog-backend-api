@@ -1,13 +1,27 @@
+using System.Text;
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using QuestLog.API.Middleware;
 using QuestLog.Application.Common.Behaviours;
 using QuestLog.Application.Common.Interfaces;
 using QuestLog.Infrastructure.Data;
+using QuestLog.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Services ──────────────────────────────────────────────────────────────────
+
+// IHttpContextAccessor — needed by CurrentUserService to read JWT claims
+builder.Services.AddHttpContextAccessor();
+
+// Current user service — scoped so it re-reads claims on every request
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 
 // EF Core + SQLite
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -36,13 +50,39 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddValidatorsFromAssembly(
     typeof(QuestLog.Application.AssemblyMarker).Assembly);
 
-// Controllers
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
+// JWT Authentication
+string jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        // Serialize enums as strings in JSON
-        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer           = true,
+            ValidateAudience         = true,
+            ValidateLifetime         = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer              = builder.Configuration["Jwt:Issuer"],
+            ValidAudience            = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+        };
     });
+
+// Apply [Authorize] globally — every controller requires a valid JWT by default.
+// AuthController overrides this with [AllowAnonymous].
+builder.Services.AddControllers(options =>
+{
+    var policy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+    options.Filters.Add(new AuthorizeFilter(policy));
+})
+.AddJsonOptions(options =>
+{
+    // Serialize enums as strings in JSON
+    options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
 
 // Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -87,6 +127,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAngularDev");
+app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();
 app.MapControllers();
 

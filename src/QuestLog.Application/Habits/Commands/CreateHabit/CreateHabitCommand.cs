@@ -19,10 +19,12 @@ public record CreateHabitCommand(
 public class CreateHabitCommandHandler : IRequestHandler<CreateHabitCommand, HabitDto>
 {
     private readonly IHabitRepository _repository;
+    private readonly ICurrentUserService _currentUser;
 
-    public CreateHabitCommandHandler(IHabitRepository repository)
+    public CreateHabitCommandHandler(IHabitRepository repository, ICurrentUserService currentUser)
     {
         _repository = repository;
+        _currentUser = currentUser;
     }
 
     public async Task<HabitDto> Handle(CreateHabitCommand request, CancellationToken cancellationToken)
@@ -32,6 +34,7 @@ public class CreateHabitCommandHandler : IRequestHandler<CreateHabitCommand, Hab
 
         var habit = new Habit
         {
+            UserId    = _currentUser.UserId!.Value,
             Name      = request.Name.Trim(),
             Emoji     = string.IsNullOrWhiteSpace(request.Emoji) ? "✅" : request.Emoji.Trim(),
             SortOrder = maxOrder + 1,

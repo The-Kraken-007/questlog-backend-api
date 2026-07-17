@@ -9,6 +9,7 @@ namespace QuestLog.Application.Common.Interfaces;
 /// </summary>
 public interface IAppDbContext
 {
+    DbSet<User> Users { get; }
     DbSet<Habit> Habits { get; }
     DbSet<HabitEntry> HabitEntries { get; }
     DbSet<Goal> Goals { get; }

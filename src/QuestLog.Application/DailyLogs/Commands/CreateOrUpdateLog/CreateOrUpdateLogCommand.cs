@@ -14,8 +14,13 @@ public record CreateOrUpdateLogCommand(
 public class CreateOrUpdateLogCommandHandler : IRequestHandler<CreateOrUpdateLogCommand, DailyLogDto>
 {
     private readonly IDailyLogRepository _repository;
+    private readonly ICurrentUserService _currentUser;
 
-    public CreateOrUpdateLogCommandHandler(IDailyLogRepository repository) => _repository = repository;
+    public CreateOrUpdateLogCommandHandler(IDailyLogRepository repository, ICurrentUserService currentUser)
+    {
+        _repository = repository;
+        _currentUser = currentUser;
+    }
 
     public async Task<DailyLogDto> Handle(CreateOrUpdateLogCommand request, CancellationToken cancellationToken)
     {
@@ -26,6 +31,7 @@ public class CreateOrUpdateLogCommandHandler : IRequestHandler<CreateOrUpdateLog
             // First log for this date — create
             existing = new DailyLog
             {
+                UserId    = _currentUser.UserId!.Value,
                 Date      = request.Date,
                 Content   = request.Content.Trim(),
                 CreatedAt = DateTime.UtcNow,

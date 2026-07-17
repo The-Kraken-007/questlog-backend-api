@@ -10,9 +10,11 @@ namespace QuestLog.API.Middleware;
 /// structured RFC 7807 ProblemDetails responses so all errors have a consistent shape.
 /// 
 /// Maps:
-/// - <see cref="ValidationException"/>  → 400 Bad Request with field-level errors
-/// - <see cref="KeyNotFoundException"/> → 404 Not Found
-/// - Any other exception               → 500 Internal Server Error
+/// - <see cref="ValidationException"/>         → 400 Bad Request with field-level errors
+/// - <see cref="UnauthorizedAccessException"/> → 401 Unauthorized
+/// - <see cref="InvalidOperationException"/>   → 409 Conflict (e.g. duplicate email)
+/// - <see cref="KeyNotFoundException"/>         → 404 Not Found
+/// - Any other exception                       → 500 Internal Server Error
 /// </summary>
 public class GlobalExceptionMiddleware
 {
@@ -34,6 +36,14 @@ public class GlobalExceptionMiddleware
         catch (ValidationException ex)
         {
             await HandleValidationExceptionAsync(context, ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            await HandleUnauthorizedExceptionAsync(context, ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await HandleConflictExceptionAsync(context, ex);
         }
         catch (KeyNotFoundException ex)
         {
@@ -64,6 +74,44 @@ public class GlobalExceptionMiddleware
         {
             Title    = "One or more validation errors occurred.",
             Status   = StatusCodes.Status400BadRequest,
+            Instance = context.Request.Path
+        };
+
+        await context.Response.WriteAsync(
+            JsonSerializer.Serialize(problem, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            }));
+    }
+
+    private static async Task HandleUnauthorizedExceptionAsync(HttpContext context, UnauthorizedAccessException ex)
+    {
+        context.Response.StatusCode  = StatusCodes.Status401Unauthorized;
+        context.Response.ContentType = "application/problem+json";
+
+        var problem = new ProblemDetails
+        {
+            Title    = ex.Message,
+            Status   = StatusCodes.Status401Unauthorized,
+            Instance = context.Request.Path
+        };
+
+        await context.Response.WriteAsync(
+            JsonSerializer.Serialize(problem, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            }));
+    }
+
+    private static async Task HandleConflictExceptionAsync(HttpContext context, InvalidOperationException ex)
+    {
+        context.Response.StatusCode  = StatusCodes.Status409Conflict;
+        context.Response.ContentType = "application/problem+json";
+
+        var problem = new ProblemDetails
+        {
+            Title    = ex.Message,
+            Status   = StatusCodes.Status409Conflict,
             Instance = context.Request.Path
         };
 
