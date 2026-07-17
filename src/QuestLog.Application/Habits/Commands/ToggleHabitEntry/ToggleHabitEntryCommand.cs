@@ -23,23 +23,21 @@ public record ToggleHabitEntryCommand(
 
 public class ToggleHabitEntryCommandHandler : IRequestHandler<ToggleHabitEntryCommand, HabitDto>
 {
-    private readonly IAppDbContext _db;
+    private readonly IHabitRepository _repository;
 
-    public ToggleHabitEntryCommandHandler(IAppDbContext db)
+    public ToggleHabitEntryCommandHandler(IHabitRepository repository)
     {
-        _db = db;
+        _repository = repository;
     }
 
     public async Task<HabitDto> Handle(ToggleHabitEntryCommand request, CancellationToken cancellationToken)
     {
         // Ensure the habit exists
-        var habit = await _db.Habits
-            .FirstOrDefaultAsync(h => h.Id == request.HabitId, cancellationToken)
+        var habit = await _repository.GetByIdAsync(request.HabitId, cancellationToken)
             ?? throw new KeyNotFoundException($"Habit with ID {request.HabitId} was not found.");
 
         // Upsert: find existing entry for this date or create a new one
-        var entry = await _db.HabitEntries
-            .FirstOrDefaultAsync(e => e.HabitId == request.HabitId && e.Date == request.Date, cancellationToken);
+        var entry = await _repository.GetEntryAsync(request.HabitId, request.Date, cancellationToken);
 
         if (entry is null)
         {
@@ -51,7 +49,7 @@ public class ToggleHabitEntryCommandHandler : IRequestHandler<ToggleHabitEntryCo
                 IsCompleted = true,
                 CreatedAt   = DateTime.UtcNow
             };
-            _db.HabitEntries.Add(entry);
+            _repository.AddEntry(entry);
         }
         else
         {
@@ -59,13 +57,10 @@ public class ToggleHabitEntryCommandHandler : IRequestHandler<ToggleHabitEntryCo
             entry.IsCompleted = !entry.IsCompleted;
         }
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         // Reload all completed dates to calculate streak
-        var allCompletedDates = await _db.HabitEntries
-            .Where(e => e.HabitId == request.HabitId && e.IsCompleted)
-            .Select(e => e.Date)
-            .ToListAsync(cancellationToken);
+        var allCompletedDates = await _repository.GetAllCompletedDatesAsync(request.HabitId, cancellationToken);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         bool isCompletedToday = allCompletedDates.Contains(today);

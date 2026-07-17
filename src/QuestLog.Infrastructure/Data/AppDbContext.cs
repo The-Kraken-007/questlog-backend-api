@@ -6,8 +6,15 @@ namespace QuestLog.Infrastructure.Data;
 
 public class AppDbContext : DbContext, IAppDbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    private readonly ICurrentUserService _currentUserService;
 
+    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserService currentUserService)
+        : base(options)
+    {
+        _currentUserService = currentUserService;
+    }
+
+    public DbSet<User> Users => Set<User>();
     public DbSet<Habit> Habits => Set<Habit>();
     public DbSet<HabitEntry> HabitEntries => Set<HabitEntry>();
     public DbSet<Goal> Goals => Set<Goal>();
@@ -18,16 +25,31 @@ public class AppDbContext : DbContext, IAppDbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Habit
+        // User
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Username).IsRequired().HasMaxLength(50);
+            entity.Property(u => u.Email).IsRequired().HasMaxLength(200);
+            entity.HasIndex(u => u.Email).IsUnique();
+        });
+
+        // Habit — scoped to the current user via global query filter
         modelBuilder.Entity<Habit>(entity =>
         {
             entity.HasKey(h => h.Id);
             entity.Property(h => h.Name).IsRequired().HasMaxLength(100);
             entity.Property(h => h.Emoji).HasMaxLength(10).HasDefaultValue("✅");
+            entity.HasOne(h => h.User)
+                  .WithMany()
+                  .HasForeignKey(h => h.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
             entity.HasMany(h => h.Entries)
                   .WithOne(e => e.Habit)
                   .HasForeignKey(e => e.HabitId)
                   .OnDelete(DeleteBehavior.Cascade);
+            // Automatically filter all Habit queries to the current user
+            entity.HasQueryFilter(h => h.UserId == _currentUserService.UserId);
         });
 
         // HabitEntry — unique per habit per date
@@ -37,16 +59,21 @@ public class AppDbContext : DbContext, IAppDbContext
             entity.HasIndex(e => new { e.HabitId, e.Date }).IsUnique();
         });
 
-        // Goal
+        // Goal — scoped to the current user via global query filter
         modelBuilder.Entity<Goal>(entity =>
         {
             entity.HasKey(g => g.Id);
             entity.Property(g => g.Title).IsRequired().HasMaxLength(200);
             entity.Property(g => g.Status).HasConversion<int>();
+            entity.HasOne(g => g.User)
+                  .WithMany()
+                  .HasForeignKey(g => g.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
             entity.HasMany(g => g.Milestones)
                   .WithOne(m => m.Goal)
                   .HasForeignKey(m => m.GoalId)
                   .OnDelete(DeleteBehavior.Cascade);
+            entity.HasQueryFilter(g => g.UserId == _currentUserService.UserId);
         });
 
         // Milestone
@@ -56,12 +83,18 @@ public class AppDbContext : DbContext, IAppDbContext
             entity.Property(m => m.Title).IsRequired().HasMaxLength(200);
         });
 
-        // DailyLog — unique per date
+        // DailyLog — unique per user per date (unique index updated for multi-user)
         modelBuilder.Entity<DailyLog>(entity =>
         {
             entity.HasKey(d => d.Id);
-            entity.HasIndex(d => d.Date).IsUnique();
+            entity.HasOne(d => d.User)
+                  .WithMany()
+                  .HasForeignKey(d => d.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            // Unique log per user per day
+            entity.HasIndex(d => new { d.UserId, d.Date }).IsUnique();
             entity.Property(d => d.Content).IsRequired();
+            entity.HasQueryFilter(d => d.UserId == _currentUserService.UserId);
         });
     }
 }

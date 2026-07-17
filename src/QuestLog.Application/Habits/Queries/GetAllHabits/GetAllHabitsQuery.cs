@@ -18,22 +18,18 @@ public record GetAllHabitsQuery : IRequest<List<HabitDto>>;
 
 public class GetAllHabitsQueryHandler : IRequestHandler<GetAllHabitsQuery, List<HabitDto>>
 {
-    private readonly IAppDbContext _db;
+    private readonly IHabitRepository _repository;
 
-    public GetAllHabitsQueryHandler(IAppDbContext db)
+    public GetAllHabitsQueryHandler(IHabitRepository repository)
     {
-        _db = db;
+        _repository = repository;
     }
 
     public async Task<List<HabitDto>> Handle(GetAllHabitsQuery request, CancellationToken cancellationToken)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var habits = await _db.Habits
-            .Where(h => !h.IsArchived)
-            .OrderBy(h => h.SortOrder)
-            .Include(h => h.Entries)
-            .ToListAsync(cancellationToken);
+        var habits = await _repository.GetAllActiveAsync(cancellationToken);
 
         return habits.Select(habit =>
         {

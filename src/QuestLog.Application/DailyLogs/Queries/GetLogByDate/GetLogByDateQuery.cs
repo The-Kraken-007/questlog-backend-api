@@ -9,14 +9,13 @@ public record GetLogByDateQuery(DateOnly Date) : IRequest<DailyLogDto?>;
 
 public class GetLogByDateQueryHandler : IRequestHandler<GetLogByDateQuery, DailyLogDto?>
 {
-    private readonly IAppDbContext _db;
+    private readonly IDailyLogRepository _repository;
 
-    public GetLogByDateQueryHandler(IAppDbContext db) => _db = db;
+    public GetLogByDateQueryHandler(IDailyLogRepository repository) => _repository = repository;
 
     public async Task<DailyLogDto?> Handle(GetLogByDateQuery request, CancellationToken cancellationToken)
     {
-        var log = await _db.DailyLogs
-            .FirstOrDefaultAsync(l => l.Date == request.Date, cancellationToken);
+        var log = await _repository.GetByDateAsync(request.Date, cancellationToken);
 
         if (log is null) return null;
 

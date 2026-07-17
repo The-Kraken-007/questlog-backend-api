@@ -21,15 +21,13 @@ public record UpdateGoalCommand(
 
 public class UpdateGoalCommandHandler : IRequestHandler<UpdateGoalCommand, GoalDto>
 {
-    private readonly IAppDbContext _db;
+    private readonly IGoalRepository _repository;
 
-    public UpdateGoalCommandHandler(IAppDbContext db) => _db = db;
+    public UpdateGoalCommandHandler(IGoalRepository repository) => _repository = repository;
 
     public async Task<GoalDto> Handle(UpdateGoalCommand request, CancellationToken cancellationToken)
     {
-        var goal = await _db.Goals
-            .Include(g => g.Milestones)
-            .FirstOrDefaultAsync(g => g.Id == request.Id, cancellationToken)
+        var goal = await _repository.GetByIdWithMilestonesAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Goal with ID {request.Id} was not found.");
 
         if (request.Title is not null)
@@ -51,7 +49,7 @@ public class UpdateGoalCommandHandler : IRequestHandler<UpdateGoalCommand, GoalD
                 goal.CompletedAt = null;
         }
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         return GoalMapper.ToDto(goal);
     }

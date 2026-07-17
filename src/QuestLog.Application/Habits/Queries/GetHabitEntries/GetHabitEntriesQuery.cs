@@ -21,32 +21,21 @@ public record GetHabitEntriesQuery(
 
 public class GetHabitEntriesQueryHandler : IRequestHandler<GetHabitEntriesQuery, List<HabitEntryDto>>
 {
-    private readonly IAppDbContext _db;
+    private readonly IHabitRepository _repository;
 
-    public GetHabitEntriesQueryHandler(IAppDbContext db)
+    public GetHabitEntriesQueryHandler(IHabitRepository repository)
     {
-        _db = db;
+        _repository = repository;
     }
 
     public async Task<List<HabitEntryDto>> Handle(GetHabitEntriesQuery request, CancellationToken cancellationToken)
     {
         // Verify the habit exists
-        bool habitExists = await _db.Habits.AnyAsync(h => h.Id == request.HabitId, cancellationToken);
+        bool habitExists = await _repository.ExistsAsync(request.HabitId, cancellationToken);
         if (!habitExists)
             throw new KeyNotFoundException($"Habit with ID {request.HabitId} was not found.");
 
-        var query = _db.HabitEntries
-            .Where(e => e.HabitId == request.HabitId);
-
-        if (request.From.HasValue)
-            query = query.Where(e => e.Date >= request.From.Value);
-
-        if (request.To.HasValue)
-            query = query.Where(e => e.Date <= request.To.Value);
-
-        var entries = await query
-            .OrderBy(e => e.Date)
-            .ToListAsync(cancellationToken);
+        var entries = await _repository.GetEntriesAsync(request.HabitId, request.From, request.To, cancellationToken);
 
         return entries.Select(e => new HabitEntryDto
         {

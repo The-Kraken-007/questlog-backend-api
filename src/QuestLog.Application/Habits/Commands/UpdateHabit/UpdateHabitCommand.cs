@@ -23,18 +23,16 @@ public record UpdateHabitCommand(
 
 public class UpdateHabitCommandHandler : IRequestHandler<UpdateHabitCommand, HabitDto>
 {
-    private readonly IAppDbContext _db;
+    private readonly IHabitRepository _repository;
 
-    public UpdateHabitCommandHandler(IAppDbContext db)
+    public UpdateHabitCommandHandler(IHabitRepository repository)
     {
-        _db = db;
+        _repository = repository;
     }
 
     public async Task<HabitDto> Handle(UpdateHabitCommand request, CancellationToken cancellationToken)
     {
-        var habit = await _db.Habits
-            .Include(h => h.Entries)
-            .FirstOrDefaultAsync(h => h.Id == request.Id, cancellationToken)
+        var habit = await _repository.GetByIdWithEntriesAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Habit with ID {request.Id} was not found.");
 
         // Apply only the fields that were provided
@@ -50,7 +48,7 @@ public class UpdateHabitCommandHandler : IRequestHandler<UpdateHabitCommand, Hab
         if (request.IsArchived.HasValue)
             habit.IsArchived = request.IsArchived.Value;
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var completedDates = habit.Entries

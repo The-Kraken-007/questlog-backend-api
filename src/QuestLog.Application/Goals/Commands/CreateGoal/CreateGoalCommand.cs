@@ -14,22 +14,28 @@ public record CreateGoalCommand(
 
 public class CreateGoalCommandHandler : IRequestHandler<CreateGoalCommand, GoalDto>
 {
-    private readonly IAppDbContext _db;
+    private readonly IGoalRepository _repository;
+    private readonly ICurrentUserService _currentUser;
 
-    public CreateGoalCommandHandler(IAppDbContext db) => _db = db;
+    public CreateGoalCommandHandler(IGoalRepository repository, ICurrentUserService currentUser)
+    {
+        _repository = repository;
+        _currentUser = currentUser;
+    }
 
     public async Task<GoalDto> Handle(CreateGoalCommand request, CancellationToken cancellationToken)
     {
         var goal = new Goal
         {
+            UserId      = _currentUser.UserId!.Value,
             Title       = request.Title.Trim(),
             Description = request.Description?.Trim(),
             TargetDate  = request.TargetDate,
             CreatedAt   = DateTime.UtcNow
         };
 
-        _db.Goals.Add(goal);
-        await _db.SaveChangesAsync(cancellationToken);
+        _repository.Add(goal);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         return GoalMapper.ToDto(goal);
     }

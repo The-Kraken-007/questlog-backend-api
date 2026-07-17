@@ -14,15 +14,13 @@ public record AddMilestoneCommand(
 
 public class AddMilestoneCommandHandler : IRequestHandler<AddMilestoneCommand, GoalDto>
 {
-    private readonly IAppDbContext _db;
+    private readonly IGoalRepository _repository;
 
-    public AddMilestoneCommandHandler(IAppDbContext db) => _db = db;
+    public AddMilestoneCommandHandler(IGoalRepository repository) => _repository = repository;
 
     public async Task<GoalDto> Handle(AddMilestoneCommand request, CancellationToken cancellationToken)
     {
-        var goal = await _db.Goals
-            .Include(g => g.Milestones)
-            .FirstOrDefaultAsync(g => g.Id == request.GoalId, cancellationToken)
+        var goal = await _repository.GetByIdWithMilestonesAsync(request.GoalId, cancellationToken)
             ?? throw new KeyNotFoundException($"Goal with ID {request.GoalId} was not found.");
 
         int nextOrder = goal.Milestones.Count > 0
@@ -36,8 +34,8 @@ public class AddMilestoneCommandHandler : IRequestHandler<AddMilestoneCommand, G
             SortOrder = nextOrder
         };
 
-        _db.Milestones.Add(milestone);
-        await _db.SaveChangesAsync(cancellationToken);
+        _repository.AddMilestone(milestone);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         // Reload to include the new milestone in the returned DTO
         goal.Milestones.Add(milestone);

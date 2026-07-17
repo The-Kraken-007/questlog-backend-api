@@ -11,26 +11,24 @@ public record ToggleMilestoneCommand(int MilestoneId) : IRequest<GoalDto>;
 
 public class ToggleMilestoneCommandHandler : IRequestHandler<ToggleMilestoneCommand, GoalDto>
 {
-    private readonly IAppDbContext _db;
+    private readonly IGoalRepository _repository;
 
-    public ToggleMilestoneCommandHandler(IAppDbContext db) => _db = db;
+    public ToggleMilestoneCommandHandler(IGoalRepository repository) => _repository = repository;
 
     public async Task<GoalDto> Handle(ToggleMilestoneCommand request, CancellationToken cancellationToken)
     {
-        var milestone = await _db.Milestones
-            .FirstOrDefaultAsync(m => m.Id == request.MilestoneId, cancellationToken)
+        var milestone = await _repository.GetMilestoneByIdAsync(request.MilestoneId, cancellationToken)
             ?? throw new KeyNotFoundException($"Milestone with ID {request.MilestoneId} was not found.");
 
         // Flip the milestone
         milestone.IsCompleted = !milestone.IsCompleted;
         milestone.CompletedAt = milestone.IsCompleted ? DateTime.UtcNow : null;
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         // Reload the parent goal with all milestones to recalculate progress and auto-complete
-        var goal = await _db.Goals
-            .Include(g => g.Milestones)
-            .FirstAsync(g => g.Id == milestone.GoalId, cancellationToken);
+        var goal = await _repository.GetByIdWithMilestonesAsync(milestone.GoalId, cancellationToken);
+        if (goal == null) throw new KeyNotFoundException();
 
         bool allDone = goal.Milestones.Count > 0 && goal.Milestones.All(m => m.IsCompleted);
 
@@ -39,14 +37,14 @@ public class ToggleMilestoneCommandHandler : IRequestHandler<ToggleMilestoneComm
             // Auto-complete: every milestone is ticked — mark the goal done
             goal.Status      = GoalStatus.Completed;
             goal.CompletedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync(cancellationToken);
+            await _repository.SaveChangesAsync(cancellationToken);
         }
         else if (!allDone && goal.Status == GoalStatus.Completed)
         {
             // A milestone was un-ticked — revert the goal back to Active
             goal.Status      = GoalStatus.Active;
             goal.CompletedAt = null;
-            await _db.SaveChangesAsync(cancellationToken);
+            await _repository.SaveChangesAsync(cancellationToken);
         }
 
         return GoalMapper.ToDto(goal);

@@ -18,31 +18,31 @@ public record CreateHabitCommand(
 
 public class CreateHabitCommandHandler : IRequestHandler<CreateHabitCommand, HabitDto>
 {
-    private readonly IAppDbContext _db;
+    private readonly IHabitRepository _repository;
+    private readonly ICurrentUserService _currentUser;
 
-    public CreateHabitCommandHandler(IAppDbContext db)
+    public CreateHabitCommandHandler(IHabitRepository repository, ICurrentUserService currentUser)
     {
-        _db = db;
+        _repository = repository;
+        _currentUser = currentUser;
     }
 
     public async Task<HabitDto> Handle(CreateHabitCommand request, CancellationToken cancellationToken)
     {
         // Determine next sort order (append to end)
-        int maxOrder = await _db.Habits
-            .Where(h => !h.IsArchived)
-            .Select(h => (int?)h.SortOrder)
-            .MaxAsync(cancellationToken) ?? 0;
+        int maxOrder = await _repository.GetMaxSortOrderAsync(cancellationToken);
 
         var habit = new Habit
         {
+            UserId    = _currentUser.UserId!.Value,
             Name      = request.Name.Trim(),
             Emoji     = string.IsNullOrWhiteSpace(request.Emoji) ? "✅" : request.Emoji.Trim(),
             SortOrder = maxOrder + 1,
             CreatedAt = DateTime.UtcNow
         };
 
-        _db.Habits.Add(habit);
-        await _db.SaveChangesAsync(cancellationToken);
+        _repository.Add(habit);
+        await _repository.SaveChangesAsync(cancellationToken);
 
         return new HabitDto
         {
