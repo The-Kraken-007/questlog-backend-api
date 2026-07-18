@@ -36,6 +36,13 @@ public class AddMilestoneCommandHandlerTests
         _repository.GetByIdWithMilestonesAsync(1, Arg.Any<CancellationToken>()).Returns(Task.FromResult(goal)!);
 
         var command = new AddMilestoneCommand(1, "First Milestone");
+
+        // Stub the re-fetch after save: return the goal with the new milestone included.
+        var newMilestone = new Milestone { Title = "First Milestone", SortOrder = 1, GoalId = 1 };
+        var updatedGoal = new Goal { Id = 1, Milestones = new List<Milestone> { newMilestone } };
+        _repository.GetByIdWithMilestonesAsync(1, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(goal)!, Task.FromResult(updatedGoal)!);
+
         var result = await _sut.Handle(command, CancellationToken.None);
 
         _repository.Received(1).AddMilestone(Arg.Is<Milestone>(m => m.SortOrder == 1 && m.Title == "First Milestone"));
@@ -45,12 +52,22 @@ public class AddMilestoneCommandHandlerTests
     [Fact]
     public async Task Handle_AddsMilestoneWithNextSortOrder_WhenGoalHasMilestones()
     {
+        var existingMilestone = new Milestone { SortOrder = 5 };
         var goal = new Goal 
         { 
             Id = 1, 
-            Milestones = new List<Milestone> { new Milestone { SortOrder = 5 } } 
+            Milestones = new List<Milestone> { existingMilestone } 
         };
-        _repository.GetByIdWithMilestonesAsync(1, Arg.Any<CancellationToken>()).Returns(Task.FromResult(goal)!);
+
+        // Stub the re-fetch after save: return the goal with both milestones.
+        var newMilestone = new Milestone { SortOrder = 6, GoalId = 1 };
+        var updatedGoal = new Goal
+        {
+            Id = 1,
+            Milestones = new List<Milestone> { existingMilestone, newMilestone }
+        };
+        _repository.GetByIdWithMilestonesAsync(1, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(goal)!, Task.FromResult(updatedGoal)!);
 
         var command = new AddMilestoneCommand(1, "Next Milestone");
         var result = await _sut.Handle(command, CancellationToken.None);

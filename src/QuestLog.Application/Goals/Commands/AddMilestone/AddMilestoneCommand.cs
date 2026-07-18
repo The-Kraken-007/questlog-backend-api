@@ -37,9 +37,13 @@ public class AddMilestoneCommandHandler : IRequestHandler<AddMilestoneCommand, G
         _repository.AddMilestone(milestone);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        // Reload to include the new milestone in the returned DTO
-        goal.Milestones.Add(milestone);
+        // Re-fetch to get the fully up-to-date goal with all milestones.
+        // This is intentional: avoids relying on EF Core's navigation fixup
+        // (inconsistent in unit-test contexts) while also preventing the
+        // duplicate that a manual goal.Milestones.Add() would cause.
+        var updated = await _repository.GetByIdWithMilestonesAsync(request.GoalId, cancellationToken)
+            ?? throw new InvalidOperationException($"Goal {request.GoalId} disappeared after save.");
 
-        return GoalMapper.ToDto(goal);
+        return GoalMapper.ToDto(updated);
     }
 }
