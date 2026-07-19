@@ -20,6 +20,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<Milestone> Milestones => Set<Milestone>();
     public DbSet<DailyLog> DailyLogs => Set<DailyLog>();
+    public DbSet<QuestTaskList> QuestTaskLists => Set<QuestTaskList>();
+    public DbSet<QuestTask> QuestTasks => Set<QuestTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -95,6 +97,31 @@ public class AppDbContext : DbContext, IAppDbContext
             entity.HasIndex(d => new { d.UserId, d.Date }).IsUnique();
             entity.Property(d => d.Content).IsRequired();
             entity.HasQueryFilter(d => d.UserId == _currentUserService.UserId);
+        });
+
+        // QuestTaskList
+        modelBuilder.Entity<QuestTaskList>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(100);
+            entity.HasOne(t => t.User)
+                  .WithMany()
+                  .HasForeignKey(t => t.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasQueryFilter(t => t.UserId == _currentUserService.UserId);
+        });
+
+        // QuestTask — secured via navigation through the list's UserId
+        modelBuilder.Entity<QuestTask>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(200);
+            entity.HasOne(t => t.QuestTaskList)
+                  .WithMany(l => l.Tasks)
+                  .HasForeignKey(t => t.QuestTaskListId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            // Filter tasks to only those whose parent list belongs to the current user
+            entity.HasQueryFilter(t => t.QuestTaskList.UserId == _currentUserService.UserId);
         });
     }
 }

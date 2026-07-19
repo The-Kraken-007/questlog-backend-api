@@ -14,4 +14,6 @@ public class TestDbContext : DbContext, IAppDbContext
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<Milestone> Milestones => Set<Milestone>();
     public DbSet<DailyLog> DailyLogs => Set<DailyLog>();
+    public DbSet<QuestTaskList> QuestTaskLists => Set<QuestTaskList>();
+    public DbSet<QuestTask> QuestTasks => Set<QuestTask>();
 }
