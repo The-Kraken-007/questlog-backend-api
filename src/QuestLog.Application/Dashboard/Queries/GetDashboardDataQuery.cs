@@ -14,15 +14,18 @@ public class GetDashboardDataQueryHandler : IRequestHandler<GetDashboardDataQuer
     private readonly IHabitRepository _habitRepo;
     private readonly IGoalRepository _goalRepo;
     private readonly IDailyLogRepository _logRepo;
+    private readonly IAppDbContext _context;
 
     public GetDashboardDataQueryHandler(
         IHabitRepository habitRepo,
         IGoalRepository goalRepo,
-        IDailyLogRepository logRepo)
+        IDailyLogRepository logRepo,
+        IAppDbContext context)
     {
         _habitRepo = habitRepo;
         _goalRepo = goalRepo;
         _logRepo = logRepo;
+        _context = context;
     }
 
     public async Task<DashboardDto> Handle(GetDashboardDataQuery request, CancellationToken cancellationToken)
@@ -82,6 +85,29 @@ public class GetDashboardDataQueryHandler : IRequestHandler<GetDashboardDataQuer
         var todayLogEntity = await _logRepo.GetByDateAsync(today, cancellationToken);
         var todayLog = todayLogEntity?.Content;
 
+        // Upcoming Tasks (Today, Tomorrow, Overdue)
+        var tomorrow = today.AddDays(1);
+        var tomorrowDateTime = tomorrow.ToDateTime(TimeOnly.MaxValue);
+        
+        var tasks = await _context.QuestTasks
+            .Include(t => t.QuestTaskList)
+            .Where(t => !t.IsCompleted && t.DueDate.HasValue && t.DueDate.Value <= tomorrowDateTime)
+            .ToListAsync(cancellationToken);
+
+        var sortedTasks = tasks
+            .OrderBy(t => t.DueDate!.Value.Date >= today.ToDateTime(TimeOnly.MinValue) ? 1 : 0) // Overdue first
+            .ThenBy(t => t.DueDate)
+            .ThenBy(t => t.CreatedAt)
+            .Select(t => new DashboardTaskDto
+            {
+                Id = t.Id,
+                QuestTaskListId = t.QuestTaskListId,
+                Name = t.Name,
+                DueDate = t.DueDate,
+                IsCompleted = t.IsCompleted,
+                ListName = t.QuestTaskList.Name
+            }).ToList();
+
         return new DashboardDto
         {
             TodayHabits = new TodayHabitsDto
@@ -92,7 +118,8 @@ public class GetDashboardDataQueryHandler : IRequestHandler<GetDashboardDataQuer
             },
             TopStreaks  = topStreaks,
             ActiveGoals = activeGoalDtos,
-            TodayLog    = todayLog
+            TodayLog    = todayLog,
+            UpcomingTasks = sortedTasks
         };
     }
 }
