@@ -87,7 +87,7 @@ public class GetDashboardDataQueryHandler : IRequestHandler<GetDashboardDataQuer
 
         // Upcoming Tasks (Today, Tomorrow, Overdue)
         var tomorrow = today.AddDays(1);
-        var tomorrowDateTime = tomorrow.ToDateTime(TimeOnly.MaxValue);
+        var tomorrowDateTime = DateTime.SpecifyKind(tomorrow.ToDateTime(TimeOnly.MaxValue), DateTimeKind.Utc);
         
         var tasks = await _context.QuestTasks
             .Include(t => t.QuestTaskList)
