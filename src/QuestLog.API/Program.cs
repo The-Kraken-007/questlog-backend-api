@@ -91,16 +91,23 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "QuestLog API", Version = "v1" });
 });
 
-// CORS — allow Angular dev server
+// CORS — dynamic configuration
+var allowedOriginsStr = builder.Configuration["AllowedOrigins"] ?? "http://localhost:4200";
+var allowedOrigins = allowedOriginsStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngularDev", policy =>
+    options.AddPolicy("AllowOrigins", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
 });
+
+// Health Checks
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>();
 
 // ── App Pipeline ──────────────────────────────────────────────────────────────
 
@@ -126,9 +133,15 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseCors("AllowAngularDev");
+app.UseCors("AllowOrigins");
 app.UseAuthentication(); // Must come before UseAuthorization
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false
+});
+app.MapHealthChecks("/health/ready");
 
 app.Run();
