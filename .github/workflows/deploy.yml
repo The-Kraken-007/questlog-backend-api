@@ -5,6 +5,11 @@ on:
     branches:
       - develop
 
+env:
+  # TODO: Update these with your actual Azure Resource Group and Container App names
+  RESOURCE_GROUP: quest-log
+  CONTAINER_APP_NAME: quest-log-api
+
 jobs:
   build-and-deploy:
     name: Build, Test & Docker Build (.NET 10)
@@ -32,29 +37,33 @@ jobs:
         run: docker build -t questlog-backend:${{ github.sha }} -t questlog-backend:latest .
 
       # ─────────────────────────────────────────────────────────────────────────
-      # TODO: When deployment infra is ready, uncomment and fill in these steps:
-      #
-      # - name: Log in to GHCR
-      #   uses: docker/login-action@v3
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
-      #
-      # - name: Push image to GHCR
-      #   run: |
-      #     docker tag questlog-backend:latest ghcr.io/${{ github.repository_owner }}/questlog-backend:latest
-      #     docker tag questlog-backend:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/questlog-backend:${{ github.sha }}
-      #     docker push ghcr.io/${{ github.repository_owner }}/questlog-backend:latest
-      #     docker push ghcr.io/${{ github.repository_owner }}/questlog-backend:${{ github.sha }}
-      #
-      # - name: Deploy via SSH
-      #   uses: appleboy/ssh-action@v1
-      #   with:
-      #     host: ${{ secrets.SERVER_HOST }}
-      #     username: ${{ secrets.SERVER_USER }}
-      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
-      #     script: |
-      #       docker pull ghcr.io/${{ github.repository_owner }}/questlog-backend:latest
-      #       docker compose -f /opt/questlog/docker-compose.yml up -d backend
+      # Azure Container Apps Deployment
       # ─────────────────────────────────────────────────────────────────────────
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Push image to ACR
+        run: |
+          docker tag questlog-backend:latest ${{ secrets.ACR_LOGIN_SERVER }}/questlog-backend:latest
+          docker tag questlog-backend:${{ github.sha }} ${{ secrets.ACR_LOGIN_SERVER }}/questlog-backend:${{ github.sha }}
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/questlog-backend:latest
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/questlog-backend:${{ github.sha }}
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Container App
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image ${{ secrets.ACR_LOGIN_SERVER }}/questlog-backend:${{ github.sha }}
