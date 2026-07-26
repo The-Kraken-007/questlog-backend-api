@@ -10,8 +10,15 @@ using QuestLog.Application.Common.Behaviours;
 using QuestLog.Application.Common.Interfaces;
 using QuestLog.Infrastructure.Data;
 using QuestLog.Infrastructure.Services;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog — replaces the default logging pipeline. Configuration (levels, console
+// JSON formatter, LogContext enrichment) lives in appsettings.json so Azure log
+// streams receive queryable structured events (e.g. filter by CorrelationId).
+builder.Host.UseSerilog((context, configuration) =>
+    configuration.ReadFrom.Configuration(context.Configuration));
 
 // ── Services ──────────────────────────────────────────────────────────────────
 
@@ -109,6 +116,20 @@ builder.Services.AddCors(options =>
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>();
 
+// ProblemDetails — attach the request's correlation id to every ProblemDetails
+// payload produced anywhere in the pipeline (exception handler, auth failures, ...).
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = ctx =>
+    {
+        if (ctx.HttpContext.Items[CorrelationIdMiddleware.ItemKey] is string corrId)
+        {
+            ctx.ProblemDetails.Extensions["correlationId"] = corrId;
+        }
+    };
+});
+builder.Services.AddExceptionHandler<QuestLogExceptionHandler>();
+
 // ── App Pipeline ──────────────────────────────────────────────────────────────
 
 var app = builder.Build();
@@ -120,8 +141,16 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// Global exception handling — must be first in pipeline
-app.UseMiddleware<GlobalExceptionMiddleware>();
+// Correlation id — outermost so its LogContext scope wraps the whole pipeline,
+// including exception handling (so error logs carry CorrelationId too).
+app.UseMiddleware<CorrelationIdMiddleware>();
+
+// Global exception handling — converts exceptions to RFC 7807 ProblemDetails
+// via QuestLogExceptionHandler. Must sit inside the correlation id scope.
+app.UseExceptionHandler();
+
+// Per-request structured logging (method, path, status, elapsed + CorrelationId).
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -145,3 +174,6 @@ app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthC
 app.MapHealthChecks("/health/ready");
 
 app.Run();
+
+// Ensure buffered log events are written before the process exits.
+Log.CloseAndFlush();

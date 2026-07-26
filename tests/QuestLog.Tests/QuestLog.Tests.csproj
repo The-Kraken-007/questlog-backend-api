@@ -21,6 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QuestLog.API\QuestLog.API.csproj" />
     <ProjectReference Include="..\..\src\QuestLog.Application\QuestLog.Application.csproj" />
     <ProjectReference Include="..\..\src\QuestLog.Domain\QuestLog.Domain.csproj" />
   </ItemGroup>
