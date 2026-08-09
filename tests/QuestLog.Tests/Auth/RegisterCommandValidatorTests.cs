@@ -20,16 +20,34 @@ public class RegisterCommandValidatorTests
     [Fact]
     public void Validate_Fails_WhenPasswordIsTooShort()
     {
-        var result = _sut.Validate(new RegisterCommand("testuser", "test@test.com", "12345"));
+        var result = _sut.Validate(new RegisterCommand("testuser", "test@test.com", "Ab1!"));
 
         result.IsValid.ShouldBeFalse();
-        result.Errors.ShouldContain(e => e.PropertyName == "Password" && e.ErrorMessage.Contains("at least 6 characters"));
+        result.Errors.ShouldContain(e => e.PropertyName == "Password" && e.ErrorMessage.Contains("at least 8 characters"));
+    }
+
+    [Fact]
+    public void Validate_Fails_WhenPasswordHasNoUppercase()
+    {
+        var result = _sut.Validate(new RegisterCommand("testuser", "test@test.com", "password1!"));
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == "Password" && e.ErrorMessage.Contains("uppercase letter"));
+    }
+
+    [Fact]
+    public void Validate_Fails_WhenPasswordHasNoSpecialCharacter()
+    {
+        var result = _sut.Validate(new RegisterCommand("testuser", "test@test.com", "Password1"));
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == "Password" && e.ErrorMessage.Contains("special character"));
     }
 
     [Fact]
     public void Validate_Passes_WithValidCommand()
     {
-        var result = _sut.Validate(new RegisterCommand("testuser", "test@test.com", "password123"));
+        var result = _sut.Validate(new RegisterCommand("testuser", "test@test.com", "Password1!"));
 
         result.IsValid.ShouldBeTrue();
     }
