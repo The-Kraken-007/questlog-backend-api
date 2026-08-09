@@ -17,14 +17,14 @@ public class ResetPasswordCommandValidatorTests
     [Fact]
     public void Validate_Fails_WhenEmailIsInvalid()
     {
-        var result = _sut.Validate(new ResetPasswordCommand("not-an-email", "token", "newpass123"));
+        var result = _sut.Validate(new ResetPasswordCommand("not-an-email", "token", "Newpass1!"));
         result.IsValid.ShouldBeFalse();
     }
 
     [Fact]
     public void Validate_Fails_WhenTokenIsEmpty()
     {
-        var result = _sut.Validate(new ResetPasswordCommand("test@test.com", "", "newpass123"));
+        var result = _sut.Validate(new ResetPasswordCommand("test@test.com", "", "Newpass1!"));
         result.IsValid.ShouldBeFalse();
     }
 
@@ -38,7 +38,7 @@ public class ResetPasswordCommandValidatorTests
     [Fact]
     public void Validate_Passes_WithValidCommand()
     {
-        var result = _sut.Validate(new ResetPasswordCommand("test@test.com", "token", "newpass123"));
+        var result = _sut.Validate(new ResetPasswordCommand("test@test.com", "token", "Newpass1!"));
         result.IsValid.ShouldBeTrue();
     }
 }
@@ -64,7 +64,7 @@ public class ResetPasswordCommandHandlerTests
     [Fact]
     public async Task Handle_ThrowsUnauthorized_WhenUserNotFound()
     {
-        var command = new ResetPasswordCommand("wrong@test.com", "token", "newpass123");
+        var command = new ResetPasswordCommand("wrong@test.com", "token", "Newpass1!");
         var ex = await Should.ThrowAsync<UnauthorizedAccessException>(() => _sut.Handle(command, CancellationToken.None));
         ex.Message.ShouldBe("Invalid or expired reset token.");
     }
@@ -82,7 +82,7 @@ public class ResetPasswordCommandHandlerTests
         });
         await _db.SaveChangesAsync();
 
-        var command = new ResetPasswordCommand("test@test.com", "token", "newpass123");
+        var command = new ResetPasswordCommand("test@test.com", "token", "Newpass1!");
         var ex = await Should.ThrowAsync<UnauthorizedAccessException>(() => _sut.Handle(command, CancellationToken.None));
         ex.Message.ShouldBe("Invalid or expired reset token.");
     }
@@ -100,7 +100,7 @@ public class ResetPasswordCommandHandlerTests
         });
         await _db.SaveChangesAsync();
 
-        var command = new ResetPasswordCommand("test@test.com", "wrong-token", "newpass123");
+        var command = new ResetPasswordCommand("test@test.com", "wrong-token", "Newpass1!");
         var ex = await Should.ThrowAsync<UnauthorizedAccessException>(() => _sut.Handle(command, CancellationToken.None));
         ex.Message.ShouldBe("Invalid or expired reset token.");
     }
@@ -118,9 +118,9 @@ public class ResetPasswordCommandHandlerTests
         });
         await _db.SaveChangesAsync();
 
-        _passwordHasher.Hash("newpass123").Returns("newHash");
+        _passwordHasher.Hash("Newpass1!").Returns("newHash");
 
-        var command = new ResetPasswordCommand("test@test.com", "token", "newpass123");
+        var command = new ResetPasswordCommand("test@test.com", "token", "Newpass1!");
         var result = await _sut.Handle(command, CancellationToken.None);
 
         result.ShouldBe(Unit.Value);

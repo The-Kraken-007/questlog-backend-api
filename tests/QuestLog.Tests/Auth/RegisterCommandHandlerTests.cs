@@ -47,9 +47,9 @@ public class RegisterCommandHandlerTests
     public async Task Handle_ReturnsToken_WhenUserIsRegistered()
     {
         // Arrange
-        var command = new RegisterCommand("testuser", "test@test.com", "password123");
+        var command = new RegisterCommand("testuser", "test@test.com", "Password1!");
         
-        _passwordHasher.Hash("password123").Returns("hashedPassword");
+        _passwordHasher.Hash("Password1!").Returns("hashedPassword");
         _jwtTokenGenerator.GenerateToken(Arg.Any<Guid>(), "test@test.com", "testuser").Returns("fake-jwt-token");
 
         // Act
