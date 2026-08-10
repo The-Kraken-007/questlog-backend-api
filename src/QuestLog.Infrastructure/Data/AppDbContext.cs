@@ -22,6 +22,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<DailyLog> DailyLogs => Set<DailyLog>();
     public DbSet<QuestTaskList> QuestTaskLists => Set<QuestTaskList>();
     public DbSet<QuestTask> QuestTasks => Set<QuestTask>();
+    public DbSet<UserXp> UserXps => Set<UserXp>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -122,6 +123,17 @@ public class AppDbContext : DbContext, IAppDbContext
                   .OnDelete(DeleteBehavior.Cascade);
             // Filter tasks to only those whose parent list belongs to the current user
             entity.HasQueryFilter(t => t.QuestTaskList.UserId == _currentUserService.UserId);
+        });
+
+        // UserXp — scoped to the current user via global query filter
+        modelBuilder.Entity<UserXp>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasOne(x => x.User)
+                  .WithMany()
+                  .HasForeignKey(x => x.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasQueryFilter(x => x.UserId == _currentUserService.UserId);
         });
     }
 }

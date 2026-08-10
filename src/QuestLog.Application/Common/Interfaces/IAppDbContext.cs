@@ -17,6 +17,7 @@ public interface IAppDbContext
     DbSet<DailyLog> DailyLogs { get; }
     DbSet<QuestTaskList> QuestTaskLists { get; }
     DbSet<QuestTask> QuestTasks { get; }
+    DbSet<UserXp> UserXps { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
