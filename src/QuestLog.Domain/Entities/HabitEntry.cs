@@ -7,6 +7,7 @@ public class HabitEntry
     public DateOnly Date { get; set; }
     public bool IsCompleted { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CompletedAt { get; set; }
 
     public Habit Habit { get; set; } = null!;
 }

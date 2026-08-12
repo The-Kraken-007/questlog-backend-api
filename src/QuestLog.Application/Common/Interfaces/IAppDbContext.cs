@@ -18,6 +18,8 @@ public interface IAppDbContext
     DbSet<QuestTaskList> QuestTaskLists { get; }
     DbSet<QuestTask> QuestTasks { get; }
     DbSet<UserXp> UserXps { get; }
+    DbSet<Achievement> Achievements { get; }
+    DbSet<UserAchievement> UserAchievements { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using QuestLog.Application.Common.Interfaces;
 using QuestLog.Domain.Entities;
+using QuestLog.Domain.Enums;
 
 namespace QuestLog.Infrastructure.Data;
 
@@ -23,6 +24,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<QuestTaskList> QuestTaskLists => Set<QuestTaskList>();
     public DbSet<QuestTask> QuestTasks => Set<QuestTask>();
     public DbSet<UserXp> UserXps => Set<UserXp>();
+    public DbSet<Achievement> Achievements => Set<Achievement>();
+    public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -135,5 +138,62 @@ public class AppDbContext : DbContext, IAppDbContext
                   .OnDelete(DeleteBehavior.Cascade);
             entity.HasQueryFilter(x => x.UserId == _currentUserService.UserId);
         });
+
+        // Achievement — static reference data, no query filter needed
+        modelBuilder.Entity<Achievement>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.Key).IsRequired().HasMaxLength(50);
+            entity.Property(a => a.Name).IsRequired().HasMaxLength(100);
+            entity.Property(a => a.Description).IsRequired().HasMaxLength(300);
+            entity.Property(a => a.Icon).HasMaxLength(10);
+            entity.Property(a => a.Category).HasConversion<int>();
+            entity.HasIndex(a => a.Key).IsUnique();
+        });
+
+        // UserAchievement — scoped to current user, unique per user per achievement
+        modelBuilder.Entity<UserAchievement>(entity =>
+        {
+            entity.HasKey(ua => ua.Id);
+            entity.HasOne(ua => ua.User)
+                  .WithMany()
+                  .HasForeignKey(ua => ua.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(ua => ua.Achievement)
+                  .WithMany()
+                  .HasForeignKey(ua => ua.AchievementId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(ua => new { ua.UserId, ua.AchievementId }).IsUnique();
+            entity.HasQueryFilter(ua => ua.UserId == _currentUserService.UserId);
+        });
+
+        // Seed all 16 achievements with stable GUIDs
+        SeedAchievements(modelBuilder);
+    }
+
+    private static void SeedAchievements(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Achievement>().HasData(
+            // Streaks
+            new { Id = Guid.Parse("a1b2c3d4-0001-4000-8000-000000000001"), Key = "first_flame", Name = "First Flame", Description = "Complete any habit for the first time", Category = AchievementCategory.Streak, Icon = "🔥" },
+            new { Id = Guid.Parse("a1b2c3d4-0002-4000-8000-000000000002"), Key = "week_warrior", Name = "Week Warrior", Description = "Maintain a 7-day streak on any habit", Category = AchievementCategory.Streak, Icon = "⚔️" },
+            new { Id = Guid.Parse("a1b2c3d4-0003-4000-8000-000000000003"), Key = "monthly_master", Name = "Monthly Master", Description = "Maintain a 30-day streak on any habit", Category = AchievementCategory.Streak, Icon = "🛡️" },
+            new { Id = Guid.Parse("a1b2c3d4-0004-4000-8000-000000000004"), Key = "century_club", Name = "Century Club", Description = "Maintain a 100-day streak on any habit", Category = AchievementCategory.Streak, Icon = "👑" },
+            // Milestones
+            new { Id = Guid.Parse("a1b2c3d4-0005-4000-8000-000000000005"), Key = "goal_getter", Name = "Goal Getter", Description = "Complete your first goal", Category = AchievementCategory.Milestone, Icon = "🎯" },
+            new { Id = Guid.Parse("a1b2c3d4-0006-4000-8000-000000000006"), Key = "overachiever", Name = "Overachiever", Description = "Complete 10 goals", Category = AchievementCategory.Milestone, Icon = "🏆" },
+            new { Id = Guid.Parse("a1b2c3d4-0007-4000-8000-000000000007"), Key = "milestone_marker", Name = "Milestone Marker", Description = "Complete 5 goal milestones", Category = AchievementCategory.Milestone, Icon = "📌" },
+            new { Id = Guid.Parse("a1b2c3d4-0008-4000-8000-000000000008"), Key = "perfect_week", Name = "Perfect Week", Description = "Complete at least one habit every day for 7 consecutive days", Category = AchievementCategory.Milestone, Icon = "⭐" },
+            // Consistency
+            new { Id = Guid.Parse("a1b2c3d4-0009-4000-8000-000000000009"), Key = "dedicated", Name = "Dedicated", Description = "Complete habits 5 days in a week", Category = AchievementCategory.Consistency, Icon = "📅" },
+            new { Id = Guid.Parse("a1b2c3d4-0010-4000-8000-000000000010"), Key = "committed", Name = "Committed", Description = "Complete habits 20 days in a month", Category = AchievementCategory.Consistency, Icon = "🗓️" },
+            new { Id = Guid.Parse("a1b2c3d4-0011-4000-8000-000000000011"), Key = "unstoppable", Name = "Unstoppable", Description = "Complete habits 100 total times", Category = AchievementCategory.Consistency, Icon = "💪" },
+            new { Id = Guid.Parse("a1b2c3d4-0012-4000-8000-000000000012"), Key = "rising_star", Name = "Rising Star", Description = "Reach Level 10", Category = AchievementCategory.Consistency, Icon = "🌟" },
+            // Special
+            new { Id = Guid.Parse("a1b2c3d4-0013-4000-8000-000000000013"), Key = "night_owl", Name = "Night Owl", Description = "Complete a habit after midnight (UTC)", Category = AchievementCategory.Special, Icon = "🦉" },
+            new { Id = Guid.Parse("a1b2c3d4-0014-4000-8000-000000000014"), Key = "early_bird", Name = "Early Bird", Description = "Complete a habit before 7 AM (UTC)", Category = AchievementCategory.Special, Icon = "🐦" },
+            new { Id = Guid.Parse("a1b2c3d4-0015-4000-8000-000000000015"), Key = "journal_keeper", Name = "Journal Keeper", Description = "Write 30 daily log entries", Category = AchievementCategory.Special, Icon = "📝" },
+            new { Id = Guid.Parse("a1b2c3d4-0016-4000-8000-000000000016"), Key = "level_legend", Name = "Level Legend", Description = "Reach Level 50", Category = AchievementCategory.Special, Icon = "🎖️" }
+        );
     }
 }
