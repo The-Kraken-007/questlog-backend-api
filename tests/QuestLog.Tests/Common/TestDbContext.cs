@@ -17,4 +17,6 @@ public class TestDbContext : DbContext, IAppDbContext
     public DbSet<QuestTaskList> QuestTaskLists => Set<QuestTaskList>();
     public DbSet<QuestTask> QuestTasks => Set<QuestTask>();
     public DbSet<UserXp> UserXps => Set<UserXp>();
+    public DbSet<Achievement> Achievements => Set<Achievement>();
+    public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
 }

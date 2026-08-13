@@ -29,6 +29,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+builder.Services.AddScoped<QuestLog.Application.Common.Services.AchievementChecker>();
 
 // EF Core + PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
