@@ -29,7 +29,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-builder.Services.AddScoped<QuestLog.Application.Common.Services.AchievementChecker>();
+builder.Services.AddScoped<QuestLog.Application.Common.Services.IAchievementChecker, QuestLog.Application.Common.Services.AchievementChecker>();
+builder.Services.AddScoped<QuestLog.Application.Common.Services.IXpAwardService, QuestLog.Application.Common.Services.XpAwardService>();
 
 // EF Core + PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>

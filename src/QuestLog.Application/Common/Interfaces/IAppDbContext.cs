@@ -20,6 +20,7 @@ public interface IAppDbContext
     DbSet<UserXp> UserXps { get; }
     DbSet<Achievement> Achievements { get; }
     DbSet<UserAchievement> UserAchievements { get; }
+    DbSet<XpTransaction> XpTransactions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

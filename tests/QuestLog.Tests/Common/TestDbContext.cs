@@ -19,4 +19,5 @@ public class TestDbContext : DbContext, IAppDbContext
     public DbSet<UserXp> UserXps => Set<UserXp>();
     public DbSet<Achievement> Achievements => Set<Achievement>();
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
+    public DbSet<XpTransaction> XpTransactions => Set<XpTransaction>();
 }
