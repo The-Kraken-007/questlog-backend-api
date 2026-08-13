@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using QuestLog.Application.Common.Interfaces;
 using QuestLog.Application.Common.Services;
 using QuestLog.Domain.Entities;
@@ -30,7 +31,8 @@ public class XpAwardServiceTests
 
         // TestDbContext does NOT apply AppDbContext's query filters, so we can
         // write rows for any userId directly without tripping the current-user scope.
-        _sut = new XpAwardService(_db);
+        var logger = new LoggerFactory().CreateLogger<XpAwardService>();
+        _sut = new XpAwardService(_db, logger);
     }
 
     private static readonly Guid UserId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
@@ -62,7 +64,7 @@ public class XpAwardServiceTests
         _db.UserXps.Add(new UserXp { UserId = UserId, TotalXp = 80, CurrentLevel = 1, UpdatedAt = DateTime.UtcNow });
         await _db.SaveChangesAsync();
 
-        var result = await _sut.AwardXpAsync(UserId, 30, XpSource.HabitCompletion, "habit-1");
+        var result = await _sut.AwardXpAsync(UserId, 30, XpSource.HabitCompletion, "habit-1_2026-01-01");
 
         result.XpAwarded.ShouldBe(30);
         // 80 + 30 = 110 XP → level 2 (needs 100 for level 2 from level 1)
@@ -78,11 +80,12 @@ public class XpAwardServiceTests
     [Fact]
     public async Task AwardXp_SkipsDuplicate_HabitCompletion_SameDay()
     {
-        // First award succeeds
-        await _sut.AwardXpAsync(UserId, 10, XpSource.HabitCompletion, "habit-1");
+        // First award succeeds — reference id includes the date
+        var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        await _sut.AwardXpAsync(UserId, 10, XpSource.HabitCompletion, $"1_{today}");
 
         // Second award for same habit same day → idempotent skip
-        var result = await _sut.AwardXpAsync(UserId, 10, XpSource.HabitCompletion, "habit-1");
+        var result = await _sut.AwardXpAsync(UserId, 10, XpSource.HabitCompletion, $"1_{today}");
 
         result.XpAwarded.ShouldBe(0);
         result.Idempotent.ShouldBeTrue();
@@ -95,16 +98,13 @@ public class XpAwardServiceTests
     [Fact]
     public async Task AwardXp_AllowsHabitCompletion_NextDay()
     {
-        // Award today
-        await _sut.AwardXpAsync(UserId, 10, XpSource.HabitCompletion, "habit-1");
+        // Award today — reference id includes today's date
+        var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        await _sut.AwardXpAsync(UserId, 10, XpSource.HabitCompletion, $"1_{today}");
 
-        // Manually backdate the existing transaction to yesterday so the new one isn't a duplicate
-        var existingTxn = await _db.XpTransactions.SingleAsync(t => t.UserId == UserId);
-        existingTxn.CreatedAt = DateTime.UtcNow.Date.AddDays(-1);
-        await _db.SaveChangesAsync();
-
-        // New award for same habit, "today" (no duplicate) → succeeds
-        var result = await _sut.AwardXpAsync(UserId, 10, XpSource.HabitCompletion, "habit-1");
+        // Award for yesterday — different reference id → allowed
+        var yesterday = DateTime.UtcNow.AddDays(-1).ToString("yyyy-MM-dd");
+        var result = await _sut.AwardXpAsync(UserId, 10, XpSource.HabitCompletion, $"1_{yesterday}");
 
         result.XpAwarded.ShouldBe(10);
         result.Idempotent.ShouldBeFalse();
@@ -159,7 +159,7 @@ public class XpAwardServiceTests
     [Fact]
     public async Task AwardXp_ReturnsZeroAndNoSave_WhenAmountIsZero()
     {
-        var result = await _sut.AwardXpAsync(UserId, 0, XpSource.HabitCompletion, "habit-1");
+        var result = await _sut.AwardXpAsync(UserId, 0, XpSource.HabitCompletion, "habit-1_2026-01-01");
 
         result.XpAwarded.ShouldBe(0);
         result.Idempotent.ShouldBeFalse();

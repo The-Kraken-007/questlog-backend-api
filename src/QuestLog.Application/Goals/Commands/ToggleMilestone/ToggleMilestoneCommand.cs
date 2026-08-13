@@ -50,8 +50,8 @@ public class ToggleMilestoneCommandHandler : IRequestHandler<ToggleMilestoneComm
         await _repository.SaveChangesAsync(cancellationToken);
 
         // Reload the parent goal with all milestones to recalculate progress and auto-complete
-        var goal = await _repository.GetByIdWithMilestonesAsync(milestone.GoalId, cancellationToken);
-        if (goal == null) throw new KeyNotFoundException();
+        var goal = await _repository.GetByIdWithMilestonesAsync(milestone.GoalId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Goal for milestone {request.MilestoneId} was not found.");
 
         bool goalAutoCompleted = false;
 

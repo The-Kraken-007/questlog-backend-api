@@ -126,9 +126,10 @@ public class ToggleHabitEntryCommandHandlerTests
         // Act
         await _sut.Handle(new ToggleHabitEntryCommand(1, date), CancellationToken.None);
 
-        // Assert — base 10 XP for habit completion
+        // Assert — base 10 XP for habit completion (reference id includes date)
+        var expectedRef = $"{1}_{DateOnly.FromDateTime(DateTime.UtcNow):yyyy-MM-dd}";
         await _xpAwardService.Received(1).AwardXpAsync(
-            userId, 10, XpSource.HabitCompletion, "1", Arg.Any<CancellationToken>());
+            userId, 10, XpSource.HabitCompletion, expectedRef, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -148,11 +149,12 @@ public class ToggleHabitEntryCommandHandlerTests
         // Act
         await _sut.Handle(new ToggleHabitEntryCommand(1, today), CancellationToken.None);
 
-        // Assert — base 10 + 50 streak bonus
+        // Assert — base 10 + 50 streak bonus (reference id includes date)
+        var expectedRef = $"{1}_{DateOnly.FromDateTime(DateTime.UtcNow):yyyy-MM-dd}";
         await _xpAwardService.Received(1).AwardXpAsync(
-            userId, 10, XpSource.HabitCompletion, "1", Arg.Any<CancellationToken>());
+            userId, 10, XpSource.HabitCompletion, expectedRef, Arg.Any<CancellationToken>());
         await _xpAwardService.Received(1).AwardXpAsync(
-            userId, 50, XpSource.StreakMilestone, "1", Arg.Any<CancellationToken>());
+            userId, 50, XpSource.StreakMilestone, expectedRef, Arg.Any<CancellationToken>());
     }
 
     [Fact]

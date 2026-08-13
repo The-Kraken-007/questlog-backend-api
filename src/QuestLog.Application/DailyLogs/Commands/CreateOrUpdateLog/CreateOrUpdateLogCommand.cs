@@ -43,6 +43,9 @@ public class CreateOrUpdateLogCommandHandler : IRequestHandler<CreateOrUpdateLog
 
     public async Task<GamifiedResult<DailyLogDto>> Handle(CreateOrUpdateLogCommand request, CancellationToken cancellationToken)
     {
+        var userId = _currentUser.UserId
+            ?? throw new UnauthorizedAccessException("User not authenticated.");
+
         var existing = await _repository.GetByDateAsync(request.Date, cancellationToken);
 
         bool isCreate = existing is null;
@@ -52,7 +55,7 @@ public class CreateOrUpdateLogCommandHandler : IRequestHandler<CreateOrUpdateLog
             // First log for this date — create
             existing = new DailyLog
             {
-                UserId    = _currentUser.UserId!.Value,
+                UserId    = userId,
                 Date      = request.Date,
                 Content   = request.Content.Trim(),
                 CreatedAt = DateTime.UtcNow,
@@ -75,7 +78,7 @@ public class CreateOrUpdateLogCommandHandler : IRequestHandler<CreateOrUpdateLog
             return GamifiedResult<DailyLogDto>.Empty(dto);
 
         var xpResult = await _xpAwardService.AwardXpAsync(
-            _currentUser.UserId!.Value,
+            userId,
             15,
             XpSource.DailyLog,
             request.Date.ToString("yyyy-MM-dd"),

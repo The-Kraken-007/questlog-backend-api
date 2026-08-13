@@ -168,8 +168,11 @@ public class AppDbContext : DbContext, IAppDbContext
             entity.HasQueryFilter(ua => ua.UserId == _currentUserService.UserId);
         });
 
-        // XpTransaction — audit log of every XP award. Indexed by (UserId, Source, ReferenceId)
-        // to allow O(log n) idempotency checks (e.g. "was habit X already awarded today?").
+        // XpTransaction — audit log of every XP award. UNIQUE composite index on
+        // (UserId, Source, ReferenceId) enforces idempotency at the DB level so
+        // concurrent duplicate awards are rejected even if the application-level
+        // check has a TOCTOU gap. For HabitCompletion the reference id encodes
+        // the date (e.g. "5_2026-08-13") so the same index serves daily idempotency.
         modelBuilder.Entity<XpTransaction>(entity =>
         {
             entity.HasKey(t => t.Id);
@@ -179,7 +182,7 @@ public class AppDbContext : DbContext, IAppDbContext
                   .OnDelete(DeleteBehavior.Cascade);
             entity.Property(t => t.Source).HasConversion<int>();
             entity.Property(t => t.ReferenceId).HasMaxLength(100);
-            entity.HasIndex(t => new { t.UserId, t.Source, t.ReferenceId });
+            entity.HasIndex(t => new { t.UserId, t.Source, t.ReferenceId }).IsUnique();
             entity.HasQueryFilter(t => t.UserId == _currentUserService.UserId);
         });
 

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using QuestLog.Application.Common.Interfaces;
 using QuestLog.Domain.Entities;
 using QuestLog.Domain.Enums;
@@ -10,21 +11,24 @@ namespace QuestLog.Application.Common.Services;
 /// updates the <see cref="UserXp"/> aggregate (level recompute), and enforces
 /// idempotency so the same action never awards twice.
 ///
-/// Idempotency rules per <see cref="XpSource"/>:
-///  - <see cref="XpSource.HabitCompletion"/>: skip if a transaction exists with
-///    the same habit id (ReferenceId) and CreatedAt on the same UTC calendar
-///    day as now. A user can earn again the next day or after un-completing.
-///  - <see cref="XpSource.StreakMilestone"/>: skip if exists for same habit id
-///    and same source. Streak milestones are once-per-habit events.
-///  - <see cref="XpSource.GoalCompletion"/>: skip if exists for same goal id.
-///  - <see cref="XpSource.GoalMilestone"/>: skip if exists for same milestone id.
-///  - <see cref="XpSource.DailyLog"/>: skip if exists for same date string.
+/// Idempotency is enforced at two levels:
+///  1. Application: <see cref="IsDuplicateAsync"/> checks for existing transactions.
+///  2. Database: a unique composite index on (UserId, Source, ReferenceId) rejects
+///     duplicate inserts even under concurrency (TOCTOU protection).
+///
+/// For HabitCompletion the reference id encodes the date (e.g. "5_2026-08-13")
+/// so the same unique index serves daily idempotency without a date-range query.
 /// </summary>
 public class XpAwardService : IXpAwardService
 {
     private readonly IAppDbContext _db;
+    private readonly ILogger<XpAwardService> _logger;
 
-    public XpAwardService(IAppDbContext db) => _db = db;
+    public XpAwardService(IAppDbContext db, ILogger<XpAwardService> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
     public async Task<XpAwardResult> AwardXpAsync(
         Guid userId,
@@ -37,7 +41,12 @@ public class XpAwardService : IXpAwardService
             return new XpAwardResult(0, null, null, false, false);
 
         if (await IsDuplicateAsync(userId, source, referenceId, ct))
+        {
+            _logger.LogDebug(
+                "Skipping duplicate XP award: UserId={UserId}, Source={Source}, ReferenceId={ReferenceId}",
+                userId, source, referenceId);
             return XpAwardResult.Skipped;
+        }
 
         // Get or create the user's XP aggregate. (Phase 1 migration seeds zero-XP
         // rows for existing users; new users are seeded on register. The null
@@ -73,6 +82,10 @@ public class XpAwardService : IXpAwardService
 
         await _db.SaveChangesAsync(ct);
 
+        _logger.LogInformation(
+            "Awarded {XpAmount} XP to UserId={UserId} for {Source} {ReferenceId}. Level: {PreviousLevel} → {NewLevel}",
+            xpAmount, userId, source, referenceId, previousLevel, userXp.CurrentLevel);
+
         return new XpAwardResult(
             XpAwarded: xpAmount,
             PreviousLevel: previousLevel,
@@ -81,19 +94,17 @@ public class XpAwardService : IXpAwardService
             Idempotent: false);
     }
 
+    /// <summary>
+    /// Quick application-level duplicate check. The DB unique index is the
+    /// authoritative guard; this check just avoids an unnecessary INSERT + exception.
+    /// </summary>
     private async Task<bool> IsDuplicateAsync(Guid userId, XpSource source, string? referenceId, CancellationToken ct)
     {
         if (referenceId is null) return false;
 
-        var query = _db.XpTransactions
-            .Where(t => t.UserId == userId && t.Source == source && t.ReferenceId == referenceId);
-
-        if (source == XpSource.HabitCompletion)
-        {
-            var today = DateTime.UtcNow.Date;
-            query = query.Where(t => t.CreatedAt.Date == today);
-        }
-
-        return await query.AnyAsync(ct);
+        // For HabitCompletion the reference id already encodes the date
+        // (e.g. "5_2026-08-13"), so no date-range filter is needed.
+        return await _db.XpTransactions
+            .AnyAsync(t => t.UserId == userId && t.Source == source && t.ReferenceId == referenceId, ct);
     }
 }

@@ -38,7 +38,8 @@ namespace QuestLog.Infrastructure.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_XpTransactions_UserId_Source_ReferenceId",
                 table: "XpTransactions",
-                columns: new[] { "UserId", "Source", "ReferenceId" });
+                columns: new[] { "UserId", "Source", "ReferenceId" },
+                unique: true);
         }
 
         /// <inheritdoc />

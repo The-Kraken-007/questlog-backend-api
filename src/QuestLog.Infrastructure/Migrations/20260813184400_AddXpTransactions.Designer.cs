@@ -555,7 +555,8 @@ namespace QuestLog.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Source", "ReferenceId");
+                    b.HasIndex("UserId", "Source", "ReferenceId")
+                        .IsUnique();
 
                     b.ToTable("XpTransactions");
                 });
