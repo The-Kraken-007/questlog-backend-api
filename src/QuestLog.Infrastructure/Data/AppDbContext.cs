@@ -26,6 +26,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<UserXp> UserXps => Set<UserXp>();
     public DbSet<Achievement> Achievements => Set<Achievement>();
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
+    public DbSet<XpTransaction> XpTransactions => Set<XpTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -165,6 +166,24 @@ public class AppDbContext : DbContext, IAppDbContext
                   .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(ua => new { ua.UserId, ua.AchievementId }).IsUnique();
             entity.HasQueryFilter(ua => ua.UserId == _currentUserService.UserId);
+        });
+
+        // XpTransaction — audit log of every XP award. UNIQUE composite index on
+        // (UserId, Source, ReferenceId) enforces idempotency at the DB level so
+        // concurrent duplicate awards are rejected even if the application-level
+        // check has a TOCTOU gap. For HabitCompletion the reference id encodes
+        // the date (e.g. "5_2026-08-13") so the same index serves daily idempotency.
+        modelBuilder.Entity<XpTransaction>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.HasOne(t => t.User)
+                  .WithMany()
+                  .HasForeignKey(t => t.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(t => t.Source).HasConversion<int>();
+            entity.Property(t => t.ReferenceId).HasMaxLength(100);
+            entity.HasIndex(t => new { t.UserId, t.Source, t.ReferenceId }).IsUnique();
+            entity.HasQueryFilter(t => t.UserId == _currentUserService.UserId);
         });
 
         // Seed all 16 achievements with stable GUIDs

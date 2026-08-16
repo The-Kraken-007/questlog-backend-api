@@ -10,7 +10,7 @@ namespace QuestLog.Application.Common.Services;
 /// Evaluates all achievement conditions for a user and unlocks any that are newly met.
 /// Called after XP-awarding actions (habit toggle, goal completion, daily log save).
 /// </summary>
-public class AchievementChecker
+public class AchievementChecker : IAchievementChecker
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUserService _currentUserService;
