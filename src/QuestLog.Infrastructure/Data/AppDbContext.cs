@@ -27,6 +27,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Achievement> Achievements => Set<Achievement>();
     public DbSet<UserAchievement> UserAchievements => Set<UserAchievement>();
     public DbSet<XpTransaction> XpTransactions => Set<XpTransaction>();
+    public DbSet<WeeklyReflection> WeeklyReflections => Set<WeeklyReflection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -184,6 +185,19 @@ public class AppDbContext : DbContext, IAppDbContext
             entity.Property(t => t.ReferenceId).HasMaxLength(100);
             entity.HasIndex(t => new { t.UserId, t.Source, t.ReferenceId }).IsUnique();
             entity.HasQueryFilter(t => t.UserId == _currentUserService.UserId);
+        });
+
+        // WeeklyReflection — one per user per week, scoped to the current user
+        modelBuilder.Entity<WeeklyReflection>(entity =>
+        {
+            entity.HasKey(w => w.Id);
+            entity.Property(w => w.Notes).IsRequired();
+            entity.HasOne(w => w.User)
+                  .WithMany()
+                  .HasForeignKey(w => w.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(w => new { w.UserId, w.WeekStart }).IsUnique();
+            entity.HasQueryFilter(w => w.UserId == _currentUserService.UserId);
         });
 
         // Seed all 16 achievements with stable GUIDs
