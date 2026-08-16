@@ -133,6 +133,30 @@ public class ToggleHabitEntryCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_BackdatedCompletion_AwardsXpWithEntryDateRef()
+    {
+        // Arrange — toggle a past date (not today). The idempotency reference must
+        // encode the completion date, otherwise multiple backdated toggles collapse
+        // onto today's ref and only one award survives.
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var pastDate = today.AddDays(-3);
+        var userId = Guid.NewGuid();
+        var habit = new Habit { Id = 1, Name = "Test Habit", UserId = userId };
+
+        _repository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(Task.FromResult(habit)!);
+        _repository.GetEntryAsync(1, pastDate, Arg.Any<CancellationToken>()).ReturnsNull();
+        _repository.GetAllCompletedDatesAsync(1, Arg.Any<CancellationToken>()).Returns(Task.FromResult(new List<DateOnly> { pastDate }));
+
+        // Act
+        await _sut.Handle(new ToggleHabitEntryCommand(1, pastDate), CancellationToken.None);
+
+        // Assert — ref uses the entry date, not today
+        var expectedRef = $"{1}_{pastDate:yyyy-MM-dd}";
+        await _xpAwardService.Received(1).AwardXpAsync(
+            userId, 10, XpSource.HabitCompletion, expectedRef, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_AwardsStreakBonus_WhenStreakIs7()
     {
         // Arrange: 7 consecutive dates ending today → streak is 7

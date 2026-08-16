@@ -110,7 +110,9 @@ public class ToggleHabitEntryCommandHandler : IRequestHandler<ToggleHabitEntryCo
 
         // Embed the date in the reference ID so the unique DB index enforces
         // one award per habit per day without a separate date-range query.
-        var habitRef = $"{request.HabitId}_{today:yyyy-MM-dd}";
+        // Uses the completion entry's date (request.Date), not today, so
+        // backdated completions (e.g. past-date toggles) each award XP.
+        var habitRef = $"{request.HabitId}_{request.Date:yyyy-MM-dd}";
 
         // Base habit completion XP (10), idempotent per habit per UTC day.
         var baseResult = await _xpAwardService.AwardXpAsync(

@@ -37,9 +37,10 @@ public class GetWeeklyReviewQueryHandler : IRequestHandler<GetWeeklyReviewQuery,
         var weekStart = WeekHelper.StartOfWeek(request.WeekStart);
         var weekEnd = weekStart.AddDays(6);
 
-        // UTC boundaries for timestamp comparisons (XpTransaction, CompletedAt, UnlockedAt)
-        var weekStartUtc = weekStart.ToDateTime(TimeOnly.MinValue);
-        var weekEndExclusiveUtc = weekEnd.AddDays(1).ToDateTime(TimeOnly.MinValue);
+        // UTC boundaries for timestamp comparisons (XpTransaction, CompletedAt, UnlockedAt).
+        // Kind must be Utc — Npgsql rejects Unspecified against timestamptz columns.
+        var weekStartUtc = WeekHelper.UtcDayStart(weekStart);
+        var weekEndExclusiveUtc = WeekHelper.UtcDayStart(weekEnd.AddDays(1));
 
         // ── XP earned this week (audit log, scoped to user via query filter) ──
         var xpTransactions = await _db.XpTransactions

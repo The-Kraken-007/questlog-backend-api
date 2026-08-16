@@ -29,4 +29,14 @@ public class WeekHelperTests
     {
         WeekHelper.StartOfWeek(new DateOnly(2026, 1, 1)).ShouldBe(new DateOnly(2025, 12, 29));
     }
+
+    [Fact]
+    public void UtcDayStart_ReturnsMidnightUtc()
+    {
+        var result = WeekHelper.UtcDayStart(new DateOnly(2026, 7, 20));
+
+        // Kind must be Utc — Npgsql rejects Unspecified against timestamptz columns.
+        result.Kind.ShouldBe(DateTimeKind.Utc);
+        result.ShouldBe(new DateTime(2026, 7, 20, 0, 0, 0, DateTimeKind.Utc));
+    }
 }
