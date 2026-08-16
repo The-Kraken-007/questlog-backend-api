@@ -21,6 +21,7 @@ public interface IAppDbContext
     DbSet<Achievement> Achievements { get; }
     DbSet<UserAchievement> UserAchievements { get; }
     DbSet<XpTransaction> XpTransactions { get; }
+    DbSet<WeeklyReflection> WeeklyReflections { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
